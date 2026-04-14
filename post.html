@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Post</title>
+</head>
+
+<body>
+
+<div id="post"></div>
+
+<script>
+const API = "http://localhost:5000";
+
+const params = new URLSearchParams(window.location.search);
+const id = params.get("id");
+
+async function loadPost() {
+  const res = await fetch(`${API}/posts/${id}`);
+  const p = await res.json();
+
+  document.getElementById("post").innerHTML = `
+    <h1>${p.title}</h1>
+    <p>${p.content}</p>
+
+    <button onclick="upvote('${p.id}')">
+      👍 ${p.upvotes || 0}
+    </button>
+  `;
+}
+
+async function upvote(id) {
+  await fetch(`${API}/posts/${id}/upvote`, { method: "POST" });
+  loadPost();
+}
+
+loadPost();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Create Post</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="p-4">
+
+<h1>Create Post</h1>
+
+<input id="title" placeholder="Title" class="w-full p-2 border mb-2"/>
+<textarea id="content" placeholder="Content" class="w-full p-2 border mb-2"></textarea>
+
+<button onclick="createPost()" class="bg-blue-500 text-white px-4 py-2">
+  Post
+</button>
+
+<script>
+const API = "http://localhost:5000";
+
+async function createPost() {
+  const title = document.getElementById("title").value;
+  const content = document.getElementById("content").value;
+
+  await fetch(`${API}/posts`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title, content })
+  });
+
+  window.location.href = "index.html";
+}
+</script>
+
+</body>
+</html>
