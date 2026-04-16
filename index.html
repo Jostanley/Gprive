@@ -2,7 +2,7 @@
 <html>
 <head>
     <title>Gprive - Anonymous Help & Private Advice Platform</title>
-
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <meta name="description" content="Gprive is a safe place to share your problems anonymously and get real advice from people. Private, secure, and easy to use.">
 
 <meta name="keywords" content="Gprive, anonymous help, private advice, anonymous chat, support platform, mental help, online advice">
@@ -60,28 +60,11 @@ const supabasejs = window.supabase.createClient(
 
 window.onload = async () => {
   const { data } = await supabasejs.auth.getSession();
-  const authArea = document.getElementById("auth-area");
 
-  if (!data.session) {
-    // ❌ NOT logged in → show login button
-    authArea.innerHTML = `
-      <button onclick="goLogin()" class="bg-blue-500 text-white px-4 py-2 rounded">
-        Login
-      </button>
-    `;
-  } else {
-    // ✅ Logged in → show user info or nothing
-    authArea.innerHTML = `
-      <p class="text-green-600">Welcome, ${data.session.user.email}</p>
-    `;
-  }
-};
-
-function goLogin() {
-  window.location.href = "login.html";
-}
-</script>
-<!-- POSTS -->
+  if(!data.session){
+      const go = confirm("You need to login. Continue?");
+if (go) window.location.href = "login.html";
+data<!-- POSTS -->
 <div id="posts" class="p-4 space-y-3"></div>
 
 <script>
