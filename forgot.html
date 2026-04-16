@@ -48,7 +48,7 @@
       }
 
       const { data, error } = await supabasejs.auth.resetPasswordForEmail(email, {
-        redirectTo: "http://localhost:5500/reset-password.html"
+        redirectTo: "https://gprive.onrender.com/reset-password.html"
       });
 
       if (error) {
