@@ -49,7 +49,7 @@
   </div>
 
 <script>
-const API = "http://localhost:5000";
+const API = "https://gpriv.onrender.com";
 
 let selectedFile = null;
 
@@ -131,7 +131,7 @@ async function uploadAndPost() {
       formData.append("file", selectedFile);
     }
 
-    const res = await fetch("http://localhost:5000/posts", {
+    const res = await fetch("https://gpriv.onrender.com/posts", {
       method: "POST",
       body: formData
     });
