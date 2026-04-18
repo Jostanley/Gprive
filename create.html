@@ -22,15 +22,29 @@ const API = "https://gpriv.onrender.com";
 
 async function createPost() {
   const title = document.getElementById("title").value;
-  const content = document.getElementById("content").value;
-
-  await fetch(`${API}/posts`, {
+  const content = document.getElementById("content").value; 
+try {
+if (title.trim() === "" || content.trim() ==="'"){
+    alert("empty post")
+    return
+} else{
+ const res = await fetch(`${API}/posts`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ title, content })
   });
-
+  if(res.ok){
+  title.value = "",
+  content.value = "",
   window.location.href = "index.html";
+} 
+}
+}
+
+catch (err){
+    alert(err)
+    return
+}
 }
 </script>
 
