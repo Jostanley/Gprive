@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Profile - Gprive</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+
+<body class="bg-gray-100 pb-20">
+
+  <!-- HEADER -->
+  <div class="bg-white p-4 text-center shadow">
+    <h1 class="text-xl font-bold">👤 Profile</h1>
+  </div>
+
+  <!-- PROFILE INFO -->
+  <div class="bg-white m-3 p-4 text-center rounded-xl shadow">
+    <h2 id="username" class="font-bold text-lg"></h2>
+    <p id="postCount" class="text-gray-500 text-sm">0 posts</p>
+  </div>
+
+  <!-- POSTS -->
+  <div class="p-3">
+    <h2 class="font-bold mb-2">Your Posts</h2>
+    <div id="userPosts" class="space-y-3"></div>
+  </div>
+
+<script>
+// ======================
+// SUPABASE CONFIG
+// ======================
+const supabasejs = window.supabase.createClient(
+  "https://bfsdkiugfbsykuwviqsl.supabase.co","eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJmc2RraXVnZmJzeWt1d3ZpcXNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4OTY5MjcsImV4cCI6MjA5MTQ3MjkyN30._JC7N3wGJ04Wr8ylQwiIIkydgFRM7D81mPLr0CsNhyc");
+
+const API = "http://localhost:5000";
+
+let currentUser = null;
+
+// ======================
+// INIT USER
+// ======================
+async function initUser() {
+  const { data, error } = await supabasejs.auth.getUser();
+
+  if (error || !data.user) {
+    alert("Not logged in");
+    //window.location.href = "login.html";
+    return;
+  }
+
+  currentUser = data.user;
+
+  // display username
+  document.getElementById("username").textContent =
+    "Anonymous_" + currentUser.id.slice(-4);
+
+  loadProfile();
+}
+
+
+// ======================
+// LOAD USER POSTS
+// ======================
+async function loadProfile() {
+  try {
+    const res = await fetch(`${API}/posts`);
+    const posts = await res.json();
+
+    const userPosts = posts.filter(
+      p => p.user_id === currentUser.id
+    );
+
+    document.getElementById("postCount").textContent =
+      userPosts.length + " posts";
+
+    const container = document.getElementById("userPosts");
+    container.innerHTML = "";
+
+    userPosts.forEach(post => {
+      const isVideo = post.file &&
+        (post.file.includes(".mp4") || post.file.includes(".webm"));
+
+      const div = document.createElement("div");
+      div.className = "bg-white p-3 rounded-xl shadow";
+
+      div.innerHTML = `
+        <h3 class="font-bold">${post.title}</h3>
+        <p class="text-gray-600 mb-2">${post.content}</p>
+
+        ${post.file ? (
+          isVideo
+            ? `<video src="${post.file}" controls class="w-full rounded-xl"></video>`
+            : `<img src="${post.file}" class="w-full rounded-xl" />`
+        ) : ""}
+
+        <button onclick="deletePost(${post.id})"
+          class="mt-2 bg-red-500 text-white px-3 py-1 rounded">
+          Delete
+        </button>
+      `;
+
+      container.appendChild(div);
+    });
+
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+
+// ======================
+// DELETE POST
+// ======================
+async function deletePost(id) {
+  if (!confirm("Delete this post?")) return;
+
+  const res = await fetch(`http://localhost:3000/posts/${id}`, {
+    method: "DELETE"
+  });
+
+  if (!res.ok) {
+    alert("Delete failed");
+    return;
+  }
+
+  loadProfile();
+}
+
+
+// INIT
+initUser();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WhatsApp Clone</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="h-screen flex bg-gray-100">
+
+<!-- LEFT SIDEBAR -->
+<div class="w-1/3 bg-white border-r overflow-y-auto" id="chatList">
+  <div class="p-4 font-bold text-lg border-b">Chats</div>
+</div>
+
+<!-- RIGHT CHAT AREA -->
+<div class="flex-1 flex flex-col">
+
+  <div class="p-4 bg-white border-b font-bold" id="chatHeader">
+    Select a chat
+  </div>
+
+  <div id="messages" class="flex-1 overflow-y-auto p-4 space-y-2"></div>
+
+  <div class="p-3 bg-white flex gap-2 border-t">
+    <input id="msgInput" class="flex-1 border rounded-full px-4 py-2" placeholder="Message..." />
+    <button id="sendBtn" class="bg-green-600 text-white px-5 rounded-full">
+      Send
+    </button>
+  </div>
+
+</div>
+
+<script type="module">
+
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+
+// =====================
+// SUPABASE INIT
+// =====================
+const supabase = createClient(
+  "https://bfsdkiugfbsykuwviqsl.supabase.co","eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJmc2RraXVnZmJzeWt1d3ZpcXNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4OTY5MjcsImV4cCI6MjA5MTQ3MjkyN30._JC7N3wGJ04Wr8ylQwiIIkydgFRM7D81mPLr0CsNhyc"
+);
+
+let currentSender = null;   // from URL params
+let activeUser = null;      // logged-in user
+let channel = null;
+
+// =====================
+// INIT SESSION
+// =====================
+window.onload = async () => {
+
+  const { data, error } = await supabase.auth.getSession();
+
+  if (error || !data?.session) {
+    alert("Login required");
+    return;
+  }
+
+  const user = data.session.user;
+
+  // =========================
+  // FIX YOU REQUESTED
+  // =========================
+
+  const params = new URLSearchParams(window.location.search);
+  const urlUser = params.get("userId");
+
+  // 👉 assign PARAMS id to currentSender
+  currentSender = urlUser;
+
+  // 👉 assign logged-in user.id to activeUser
+  activeUser = user.id;
+alert(urlUser)
+  await loadChats();
+
+  if (currentSender) {
+  alert("user send message")
+    openChat(currentSender);
+  }
+};
+
+// =====================
+// LOAD CHAT LIST
+// =====================
+async function loadChats() {
+
+  const { data } = await supabase
+    .from("messages")
+    .select("*")
+    .order("id", { ascending: false });
+
+  const usersMap = {};
+ 
+ console.log(JSON.stringify(data,null ,2))
+  data?.forEach(m => {
+
+    const me = String(activeUser);
+    const sender = String(m.sender_id);
+    const receiver = String(m.receiver_id);
+
+    if (sender !== me && receiver !== me) alert("not matching")
+    return;
+
+    const otherUser = sender === me ? receiver : sender;
+
+    if (!usersMap[otherUser]) {
+    alert("not message user")
+      usersMap[otherUser] = m.message;
+    }
+  });
+
+  const list = document.getElementById("chatList");
+  list.innerHTML = `<div class="p-4 font-bold border-b">Chats</div>`;
+
+  Object.keys(usersMap).forEach(userId => {
+
+    const div = document.createElement("div");
+    div.className = "p-4 border-b cursor-pointer hover:bg-gray-100";
+
+    div.innerHTML = `
+      <div class="font-semibold">User good</div>
+      <div class="text-sm text-gray-500 truncate">yea</div>
+    `;
+
+    div.onclick = () => openChat(userId);
+
+    list.appendChild(div);
+  });
+}
+
+// =====================
+// OPEN CHAT
+// =====================
+function openChat(userId) {
+
+  currentSender = userId;
+
+  document.getElementById("chatHeader").innerText =
+    "Chat with User " + userId;
+
+  loadMessages(userId);
+  listenMessages(userId);
+}
+
+// =====================
+// LOAD MESSAGES
+// =====================
+async function loadMessages(userId) {
+
+  const { data } = await supabase
+    .from("messages")
+    .select("*")
+    .or(
+      `and(sender_id.eq.${activeUser},receiver_id.eq.${userId}),
+       and(sender_id.eq.${userId},receiver_id.eq.${activeUser})`
+    )
+    .order("id");
+
+  const box = document.getElementById("messages");
+  box.innerHTML = "";
+
+  data?.forEach(appendMessage);
+}
+
+// =====================
+// SHOW MESSAGE
+// =====================
+function appendMessage(msg) {
+
+  const isMe = String(msg.sender_id) === String(activeUser);
+
+  const div = document.createElement("div");
+  div.className = `flex ${isMe ? "justify-end" : "justify-start"}`;
+
+  div.innerHTML = `
+    <div class="px-4 py-2 rounded-2xl text-sm max-w-[70%]
+      ${isMe ? "bg-green-600 text-white" : "bg-gray-200"}">
+      ${msg.message}
+    </div>
+  `;
+
+  const box = document.getElementById("messages");
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+
+// =====================
+// REALTIME LISTENER
+// =====================
+function listenMessages(userId) {
+
+  if (channel) supabase.removeChannel(channel);
+
+  channel = supabase
+    .channel("chat")
+    .on(
+      "postgres_changes",
+      { event: "INSERT", schema: "public", table: "messages" },
+      (payload) => {
+
+        const m = payload.new;
+
+        const isMatch =
+          (m.sender_id == activeUser && m.receiver_id == userId) ||
+          (m.sender_id == userId && m.receiver_id == activeUser);
+
+        if (isMatch) appendMessage(m);
+      }
+    )
+    .subscribe();
+}
+
+// =====================
+// SEND MESSAGE
+// =====================
+document.getElementById("sendBtn").onclick = async () => {
+
+  const input = document.getElementById("msgInput");
+  const text = input.value.trim();
+
+  if (!text || !currentSender) return;
+
+  await supabase.from("messages").insert({
+    sender_id: activeUser,
+    receiver_id: currentSender,
+    message: text
+  });
+
+  input.value = "";
+  loadChats();
+};
+
+</script>
+
+</body>
+</html>
