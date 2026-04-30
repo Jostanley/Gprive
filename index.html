@@ -237,7 +237,7 @@ function render(data) {
              ${post.likes || 0} Likes 
           </button>
 
-  <button onclick='goToMessage(${JSON.stringify(post)})'>
+  <button onclick='goToMessage(${(post.user_id)})'>
   Message
 </button>
           <button onclick="toggleComments('${post.id}')">
