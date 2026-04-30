@@ -434,10 +434,7 @@ function timeAgo(date) {
 
 //messaging page
 
-function goToMessage(post) {
-  const userId = post.user_id; // owner of the post
-  const postId = post.id;
-
+function goToMessage(userId, postId) {
   window.location.href = `message.html?userId=${userId}&postId=${postId}`;
 }
 
