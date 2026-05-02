@@ -127,6 +127,23 @@ async function deletePost(id) {
   loadProfile();
 }
 
+async function logout() {
+  const { error } = await supabasejs.auth.signOut();
+
+  if (error) {
+    alert("Logout failed");
+    console.log(error);
+  } else {
+    // Optional: clear local storage or cookies if you use them
+    localStorage.clear();
+
+    // Redirect to login page
+    window.location.href = "login.html";
+  }
+}
+
+// Make it global for onclick
+window.logout = logout;
 
 // INIT
 initUser();
