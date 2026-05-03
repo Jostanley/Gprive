@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Forgot Password</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+
+<body class="bg-gray-100 flex items-center justify-center h-screen">
+
+  <div class="bg-white p-6 rounded-xl shadow w-80">
+    <h2 class="text-xl font-bold mb-4 text-center">Forgot Password</h2>
+
+    <input id="forgot-email" type="email"
+      placeholder="Email"
+      class="w-full p-2 border mb-3 rounded">
+
+    <button onclick="forgotPassword()"
+      class="w-full bg-orange-500 text-white p-2 rounded">
+      Send Reset Link
+    </button>
+
+    <p class="text-center mt-3 text-sm">
+      <a href="login.html" class="text-blue-500">Back to Login</a>
+    </p>
+
+    <p id="msg" class="text-center mt-2"></p>
+  </div>
+
+  <script>
+    // Supabase setup
+    const supabasejs = window.supabase.createClient(
+      "https://edvwiqmydmxttviflouj.supabase.co","eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVkdndpcW15ZG14dHR2aWZsb3VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3OTM0OTYsImV4cCI6MjA5MzM2OTQ5Nn0.qHTl9JCvqiP7wUgA9v839aRLQOgcIGpdZDY3z44O29c"
+    );
+
+    async function forgotPassword() {
+      const email = document.getElementById("forgot-email").value;
+      const msg = document.getElementById("msg");
+
+      msg.innerText = "";
+
+      if (!email) {
+        msg.innerText = "Please enter your email";
+        msg.style.color = "red";
+        return;
+      }
+
+      const { data, error } = await supabasejs.auth.resetPasswordForEmail(email, {
+        redirectTo: "http://localhost:5500/reset-password.html"
+      });
+
+      if (error) {
+        msg.innerText = error.message;
+        msg.style.color = "red";
+        return;
+      }
+
+      msg.innerText = "Reset link sent! Check your email.";
+      msg.style.color = "green";
+    }
+  </script>
+
+</body>
+</html>

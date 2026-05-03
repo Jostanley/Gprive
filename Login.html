@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Login</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+
+<body class="bg-gray-100 flex items-center justify-center h-screen">
+
+  <div class="bg-white p-6 rounded-xl shadow w-80">
+    <h2 class="text-xl font-bold mb-4 text-center">Login</h2>
+
+    <input id="login-email" type="email"
+      placeholder="Email"
+      class="w-full p-2 border mb-3 rounded">
+
+    <input id="login-password" type="password"
+      placeholder="Password"
+      class="w-full p-2 border mb-3 rounded">
+
+    <button onclick="login()"
+      class="w-full bg-blue-500 text-white p-2 rounded">
+      Login
+    </button>
+
+    <p class="text-center mt-3 text-sm">
+      <a href="register.html" class="text-blue-500">Register</a> |
+      <a href="forgot.html" class="text-blue-500">Forgot Password</a>
+    </p>
+
+    <p id="msg" class="text-center mt-2"></p>
+  </div>
+
+  <script>
+    // Supabase setup
+    const supabasejs = window.supabase.createClient("https://edvwiqmydmxttviflouj.supabase.co","eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVkdndpcW15ZG14dHR2aWZsb3VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3OTM0OTYsImV4cCI6MjA5MzM2OTQ5Nn0.qHTl9JCvqiP7wUgA9v839aRLQOgcIGpdZDY3z44O29c"
+    );
+
+    async function login() {
+      const email = document.getElementById("login-email").value;
+      const password = document.getElementById("login-password").value;
+      const msg = document.getElementById("msg");
+
+      msg.innerText = "";
+
+      if (!email || !password) {
+        msg.innerText = "Fill in all fields";
+        msg.style.color = "red";
+        return;
+      }
+
+      const { data, error } = await supabasejs.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (error) {
+        msg.innerText = error.message;
+        msg.style.color = "red";
+        return;
+      }
+
+      // Save session (optional but useful)
+      const token = data.session.access_token;
+      localStorage.setItem("token", token);
+
+      msg.innerText = "Login successful!";
+      msg.style.color = "green";
+
+      // redirect
+      setTimeout(() => {
+        window.location.href = "index.html";
+      }, 1000);
+    }
+  </script>
+
+</body>
+</html>
