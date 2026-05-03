@@ -53,7 +53,7 @@ async function initUser() {
 
   if (error || !data.user) {
     alert("Not logged in");
-    //window.location.href = "Login.html";
+    window.location.href = "Login.html";
     return;
   }
 
@@ -148,7 +148,7 @@ async function logout() {
     localStorage.clear();
 
     // Redirect to login page
-    window.location.href = "login.html";
+    window.location.href = "Login.html";
   }
 }
 
