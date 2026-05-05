@@ -58,7 +58,9 @@ window.onload = async () => {
   const { data: { session } } = await supabase.auth.getSession();
 
   if (!session) {
-    alert("Login required");
+    if (confirm("Login required")) {
+      window.location.href = "login.html";
+    }
     return;
   }
 
