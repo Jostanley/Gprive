@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bookmarks</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+</head>
+
+<body class="bg-gray-100">
+
+<!-- HEADER -->
+<div class="fixed top-0 w-full bg-white p-4 shadow z-10 flex justify-between">
+  <h1 class="font-bold text-lg">Bookmarks</h1>
+  <a href="index.html" class="text-blue-500">Home</a>
+</div>
+
+<!-- CONTENT -->
+<div id="posts" class="mt-16 p-4 space-y-4"></div>
+
+<script>
+    const supabasejs = window.supabase.createClient(
+    "https://edvwiqmydmxttviflouj.supabase.co","eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVkdndpcW15ZG14dHR2aWZsb3VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3OTM0OTYsImV4cCI6MjA5MzM2OTQ5Nn0.qHTl9JCvqiP7wUgA9v839aRLQOgcIGpdZDY3z44O29c"
+);
+const API = "http://localhost:5000";
+let token = null;
+
+window.onload = async () => {
+
+  const postsDiv = document.getElementById("posts");
+  postsDiv.innerHTML = "Loading...";
+
+  const { data: { session } } = await supabasejs.auth.getSession();
+
+  if (!session) {
+    if (confirm("Login required")) {
+      window.location.href = "login.html";
+    }
+    return;
+  }
+
+  token = session.access_token;
+
+  // ======================
+  // LOAD BOOKMARKS
+  // ======================
+  async function loadBookmarks() {
+    const box = document.getElementById("posts");
+    box.innerHTML = "<p class='text-center'>Loading bookmarks...</p>";
+
+    try {
+      const res = await fetch(`${API}/bookmarks/full`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      const posts = await res.json();
+      console.log("BOOKMARKS:", JSON.stringify(posts,null,2));
+
+      render(posts);
+
+    } catch (err) {
+      box.innerHTML = `<div class="text-center text-red-500">Failed to load bookmarks</div>`;
+      console.log(err);
+    }
+  }
+
+  // ======================
+  // RENDER
+  // ======================
+  function render(posts) {
+    const box = document.getElementById("posts");
+    box.innerHTML = "";
+
+    if (!posts || posts.length === 0) {
+      box.innerHTML = `<div class="text-center text-gray-500">No bookmarks yet</div>`;
+      return;
+    }
+
+    posts.forEach(post => {
+      const isVideo =
+        post.file &&
+        (post.file.includes(".mp4") || post.file.includes(".webm"));
+
+      const comments = post.comments || [];
+
+      const div = document.createElement("div");
+      div.className = "bg-white p-4 rounded shadow relative";
+
+      div.innerHTML = `
+        <!-- HEADER -->
+        <div class="flex justify-between items-center">
+          <div>
+            <h2 class="font-bold text-blue-600">${post.username || "Anonymous"}</h2>
+            <small class="text-gray-400">${timeAgo(post.created_at)}</small>
+          </div>
+
+          <!-- 3 DOT MENU -->
+          <div class="relative">
+            <button onclick="toggleMenu('${post.id}')" class="text-xl px-2">⋮</button>
+
+            <div id="menu-${post.id}" class="hidden absolute right-0 mt-2 bg-white shadow rounded w-32 z-20">
+              <button 
+                onclick="deleteBookmark('${post.id}')" 
+                class="block w-full text-left px-4 py-2 text-red-500 hover:bg-gray-100">
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- CONTENT -->
+        <h3 class="font-semibold mt-2">${post.title || ""}</h3>
+        <p class="mt-1">${post.content || ""}</p>
+
+        <!-- FILE -->
+        ${
+          post.file
+            ? isVideo
+              ? `<video src="${post.file}" controls class="w-full mt-2 rounded"></video>`
+              : `<img src="${post.file}" class="w-full mt-2 rounded"/>`
+            : ""
+        }
+
+        <!-- STATS -->
+        <div class="mt-2 text-sm text-gray-600">
+          👍 ${post.likes || 0} Likes • 💬 ${comments.length} Comments
+        </div>
+
+        <!-- COMMENTS -->
+        <div class="mt-3 space-y-2">
+          ${comments.map(c => `
+            <div class="bg-gray-100 p-2 rounded">
+              <p>${c.text}</p>
+
+              <div class="text-xs text-gray-500 flex gap-3">
+                <span>👍 ${c.liked || 0}</span>
+                <span>👎 ${c.disliked || 0}</span>
+              </div>
+
+              ${(c.replies || []).map(r => `
+                <p class="ml-4 text-sm text-gray-700">↳ ${r.text}</p>
+              `).join("")}
+            </div>
+          `).join("")}
+        </div>
+      `;
+
+      box.appendChild(div);
+    });
+  }
+
+  // ======================
+  // TOGGLE MENU
+  // ======================
+  window.toggleMenu = function(postId) {
+    const menu = document.getElementById(`menu-${postId}`);
+    menu.classList.toggle("hidden");
+  };
+
+  // ======================
+  // DELETE BOOKMARK
+  // ======================
+  window.deleteBookmark = async function(postId) {
+    if (!confirm("Delete this bookmark?")) return;
+
+    try {
+      const res = await fetch(`${API}/bookmarks/${postId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      const data = await res.json();
+      console.log("DELETE:", data);
+
+      // remove from UI instantly
+      loadBookmarks();
+
+    } catch (err) {
+      console.log(err);
+      alert("Failed to delete bookmark");
+    }
+  };
+
+  // ======================
+  // TIME AGO
+  // ======================
+  function timeAgo(date) {
+    const seconds = Math.floor((new Date() - new Date(date)) / 1000);
+
+    const units = [
+      ["year", 31536000],
+      ["month", 2592000],
+      ["day", 86400],
+      ["hour", 3600],
+      ["minute", 60]
+    ];
+
+    for (let [label, sec] of units) {
+      const count = Math.floor(seconds / sec);
+      if (count > 0) return count + " " + label + " ago";
+    }
+
+    return "Just now";
+  }
+
+  // ======================
+  // INIT
+  // ======================
+  loadBookmarks();
+};
+</script>
+
+</body>
+</html>
