@@ -92,7 +92,22 @@ window.onload = async () => {
 
   currentUser = user.id;
   token = session.access_token;
+if (!window.presenceStarted) {
+  window.presenceStarted = true;
 
+  setInterval(async () => {
+    if (!currentUser) return;
+
+    await supabasejs
+      .from("users")
+      .update({
+        last_seen: new Date().toISOString(),
+        is_online: true
+      })
+      .eq("id", currentUser);
+
+  }, 30000);
+}
   // =====================
   // UPSERT USER
   // =====================
