@@ -84,20 +84,7 @@ async function initUser() {
       .eq("id", currentUser);
 
   }, 30000);
-}
-
-  // display username
-  document.getElementById("username").textContent =
-    "Anonymous_" + currentUser.id.slice(-4);
-
-  loadProfile();
-}
-
-
-
-  // display username
-  document.getElementById("username").textContent =
-    "Anonymous_" + currentUser.id.slice(-4);
+  }
 
   loadProfile();
 }
