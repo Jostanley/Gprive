@@ -119,7 +119,7 @@ function renderChats(chatMap) {
 
     div.innerHTML = `
       <div>
-        <div class="font-bold">User ${userId}</div>
+        <div class="font-bold"> Anonymous User</div>
         <div class="text-sm text-gray-500">${preview}</div>
       </div>
       <div class="text-xs text-gray-400">
@@ -133,7 +133,7 @@ function renderChats(chatMap) {
     div.onclick = () => {
 
       if (!userId) {
-        console.log("Invalid userId:", userId);
+        console.log("Invalid userid")
         return;
       }
 
