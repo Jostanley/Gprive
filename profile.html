@@ -146,6 +146,13 @@ async function logout() {
   } else {
     // Optional: clear local storage or cookies if you use them
     localStorage.clear();
+    await supabasejs
+    .from("users")
+    .update({
+      is_online: false,
+      last_seen: new Date().toISOString()
+    })
+    .eq("id", currentUser);
 
     // Redirect to login page
     window.location.href = "Login.html";
