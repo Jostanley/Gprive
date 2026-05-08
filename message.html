@@ -688,12 +688,12 @@ document
       message: text,
       seen: false
     });
-
+alert ("message sent")
   if (error) {
 
     console.log(error);
 
-    alert("Failed to send");
+    alert("Failed to send", JSON.stringify(error, null ,2));
 
     return;
   }
