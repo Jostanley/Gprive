@@ -62,8 +62,8 @@ const postsDiv = document.getElementById("posts");
 
 window.addEventListener("beforeunload", async () => {
 
-  await supabase
-    .from("profiles")
+  await profiles
+    .from("users")
     .update({
       is_online: false,
       last_seen: new Date().toISOString()
