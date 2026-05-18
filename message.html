@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat App</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="h-screen flex bg-gray-100 overflow-hidden">
+
+<!-- LEFT CHAT LIST -->
+<div class="w-1/3 bg-white border-r overflow-y-auto" id="chatList">
+  <div class="p-4 font-bold border-b">Chats</div>
+  <div class="p-4 text-gray-400">Loading chats...</div>
+</div>
+
+<!-- RIGHT CHAT -->
+<div class="flex-1 flex flex-col">
+
+  <div class="p-4 bg-white border-b" id="chatHeader">
+    Select a chat
+  </div>
+
+  <div id="messages" class="flex-1 overflow-y-auto p-4 flex flex-col"></div>
+
+  <div class="p-3 bg-white flex gap-2 border-t">
+    <input id="msgInput" class="flex-1 border rounded-full px-4 py-2 outline-none" placeholder="Message..." />
+    <button id="sendBtn" class="bg-green-600 text-white px-5 rounded-full">Send</button>
+  </div>
+
+</div>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+
+const supabasejs = createClient(
+  "https://edvwiqmydmxttviflouj.supabase.co","eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVkdndpcW15ZG14dHR2aWZsb3VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3OTM0OTYsImV4cCI6MjA5MzM2OTQ5Nn0.qHTl9JCvqiP7wUgA9v839aRLQOgcIGpdZDY3z44O29c"
+);
+
+// ===================== STATE =====================
+let activeUser = null;
+let currentUser = null;
+let channel = null;
+let statusChannel = null;
+
+// ===================== INIT =====================
+window.onload = async () => {
+
+  const { data: { session } } = await supabasejs.auth.getSession();
+
+  if (!session) {
+    alert("Login required");
+    window.location.href = "Login.html";
+    return;
+  }
+
+  activeUser = String(session.user.id);
+
+  // START HEARTBEAT ONLY
+  async function heartbeat() {
+    await supabasejs.from("users"). update({
+      id: activeUser,
+      is_online: true,
+      last_active: new Date().toISOString()
+    });
+  }
+
+  await heartbeat();
+  setInterval(heartbeat, 15000);
+
+  const params = new URLSearchParams(window.location.search);
+  currentUser = params.get("chatUser") || params.get("userId");
+
+  if (currentUser) currentUser = String(currentUser);
+
+  await loadChats();
+
+  if (currentUser) openChat(currentUser);
+
+  listenUserStatus();
+};
+
+// ===================== LOAD CHATS =====================
+async function loadChats() {
+
+  const list = document.getElementById("chatList");
+
+  const { data } = await supabasejs
+    .from("messages")
+    .select("*")
+    .or(`sender_id.eq.${activeUser},receiver_id.eq.${activeUser}`)
+    .order("id", { ascending: false });
+
+  const map = new Map();
+
+  data?.forEach(m => {
+    const other =
+      m.sender_id === activeUser ? m.receiver_id : m.sender_id;
+
+    if (!map.has(other)) map.set(other, m);
+  });
+
+  list.innerHTML = `<div class="p-4 font-bold border-b">Chats</div>`;
+
+  for (const [userId, msg] of map) {
+
+    const { data: user } = await supabasejs
+      .from("users")
+      .select("is_online,last_active")
+      .eq("id", userId)
+      .single();
+
+    let status = `<span class="text-gray-400 text-xs">Offline</span>`;
+
+    if (user) {
+      const diff = Date.now() - new Date(user.last_active || 0);
+
+      if (user.is_online && diff < 60000) {
+        status = `<span class="text-green-600 text-xs">Online</span>`;
+      } else if (user.last_active) {
+        status = `<span class="text-gray-400 text-xs">Last seen ${timeAgo(user.last_active)}</span>`;
+      }
+    }
+
+    const div = document.createElement("div");
+    div.className = "p-4 border-b cursor-pointer hover:bg-gray-100";
+
+    div.innerHTML = `
+      <div class="flex justify-between">
+        <div class="font-semibold">User ${userId}</div>
+        <div>${status}</div>
+      </div>
+      <div class="text-sm text-gray-500 truncate">${msg.message}</div>
+    `;
+
+    div.onclick = () => openChat(userId);
+
+    list.appendChild(div);
+  }
+}
+
+// ===================== OPEN CHAT =====================
+async function openChat(userId) {
+
+  currentUser = String(userId);
+
+  const { data: user } = await supabasejs
+    .from("users")
+    .select("*")
+    .eq("id", userId)
+    .single();
+
+  let status = "";
+
+  const diff = Date.now() - new Date(user?.last_active || 0);
+
+  if (user?.is_online && diff < 60000) {
+    status = `<span class="text-green-600 text-sm">● Online</span>`;
+  } else if (user?.last_active) {
+    status = `<span class="text-gray-400 text-sm">Last seen ${timeAgo(user.last_active)}</span>`;
+  }
+
+  document.getElementById("chatHeader").innerHTML = `
+    <div>
+      <div class="font-bold">User ${userId}</div>
+      ${status}
+    </div>
+  `;
+
+  await loadMessages(userId);
+  listenMessages(userId);
+}
+
+// ===================== LOAD MESSAGES =====================
+async function loadMessages(userId) {
+
+  const box = document.getElementById("messages");
+
+  await supabasejs
+    .from("messages")
+    .update({ is_seen: true })
+    .eq("sender_id", userId)
+    .eq("receiver_id", activeUser)
+    .eq("is_seen", false);
+
+  const { data } = await supabasejs
+    .from("messages")
+    .select("*")
+    .or(`and(sender_id.eq.${activeUser},receiver_id.eq.${userId}),and(sender_id.eq.${userId},receiver_id.eq.${activeUser})`)
+    .order("id", { ascending: true });
+
+  box.innerHTML = "";
+
+  data?.forEach(renderMessage);
+}
+
+// ===================== RENDER MESSAGE =====================
+function renderMessage(msg) {
+
+  const isMe = msg.sender_id === activeUser;
+
+  const div = document.createElement("div");
+  div.className = `flex mb-2 ${isMe ? "justify-end" : "justify-start"}`;
+
+  const bubble = document.createElement("div");
+  bubble.className = `px-4 py-2 rounded-2xl text-sm max-w-[70%] ${
+    isMe ? "bg-green-600 text-white" : "bg-gray-200"
+  }`;
+
+  bubble.innerHTML = `
+    ${msg.message}
+    <div class="text-xs opacity-70 mt-1 flex justify-end">
+      ${timeAgo(msg.created_at)}
+      ${isMe ? (msg.is_seen ? " ✓✓" : " ✓") : ""}
+    </div>
+  `;
+
+  div.appendChild(bubble);
+  document.getElementById("messages").appendChild(div);
+}
+
+// ===================== REALTIME MESSAGES =====================
+function listenMessages(userId) {
+
+  if (channel) supabasejs.removeChannel(channel);
+
+  channel = supabasejs
+    .channel("chat")
+    .on("postgres_changes", {
+      event: "INSERT",
+      schema: "public",
+      table: "messages"
+    }, payload => {
+
+      const m = payload.new;
+
+      const match =
+        (m.sender_id === activeUser && m.receiver_id === userId) ||
+        (m.sender_id === userId && m.receiver_id === activeUser);
+
+      if (!match) return;
+
+      renderMessage(m);
+      loadChats();
+
+    })
+    .subscribe();
+}
+
+// ===================== REALTIME USER STATUS =====================
+function listenUserStatus() {
+
+  if (statusChannel) supabasejs.removeChannel(statusChannel);
+
+  statusChannel = supabasejs
+    .channel("users-status")
+    .on("postgres_changes", {
+      event: "UPDATE",
+      schema: "public",
+      table: "users"
+    }, payload => {
+
+      const user = payload.new;
+
+      if (String(user.id) !== String(currentUser)) return;
+
+      openChat(currentUser);
+      loadChats();
+
+    })
+    .subscribe();
+}
+
+// ===================== SEND MESSAGE =====================
+document.getElementById("sendBtn").onclick = async () => {
+
+  const input = document.getElementById("msgInput");
+  const text = input.value.trim();
+
+  if (!text || !currentUser) return;
+
+  await supabasejs.from("messages").insert({
+    sender_id: activeUser,
+    receiver_id: currentUser,
+    message: text,
+    is_seen: false
+  });
+
+  input.value = "";
+};
+
+// ===================== TIME AGO =====================
+function timeAgo(date) {
+
+  const sec = Math.floor((Date.now() - new Date(date)) / 1000);
+
+  if (sec < 60) return "Just now";
+
+  const units = [
+    ["year", 31536000],
+    ["month", 2592000],
+    ["day", 86400],
+    ["hour", 3600],
+    ["minute", 60]
+  ];
+
+  for (let [name, value] of units) {
+    const count = Math.floor(sec / value);
+    if (count > 0) return `${count} ${name}${count > 1 ? "s" : ""} ago`;
+  }
+
+  return "Just now";
+}
+</script>
+
+</body>
+</html>
