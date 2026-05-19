@@ -164,12 +164,22 @@ removeBtn.onclick = () => {
 };
 
 // UPLOAD + POST
+let isUploading = false;
+
 async function uploadAndPost() {
+  if (isUploading) return; // block double click
+  isUploading = true;
+
+  const btn = document.getElementById("postBtn"); // your submit button
+  btn.disabled = true;
+
   const title = document.getElementById("title").value.trim();
   const content = document.getElementById("content").value.trim();
 
   if (!title || !content) {
     alert("Title and content required");
+    isUploading = false;
+    btn.disabled = false;
     return;
   }
 
@@ -186,8 +196,8 @@ async function uploadAndPost() {
     const res = await fetch("https://gpriv.onrender.com/posts", {
       method: "POST",
       headers: {
-    "Authorization": `Bearer ${token}`  
-  },
+        "Authorization": `Bearer ${token}`
+      },
       body: formData
     });
 
@@ -200,7 +210,6 @@ async function uploadAndPost() {
 
     alert("Post created successfully!");
 
-    // reset
     document.getElementById("title").value = "";
     document.getElementById("content").value = "";
     removeBtn.onclick();
@@ -208,6 +217,9 @@ async function uploadAndPost() {
   } catch (err) {
     console.error(err);
     alert("Something went wrong");
+  } finally {
+    isUploading = false;
+    btn.disabled = false;
   }
 }
 </script>
