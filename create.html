@@ -170,8 +170,6 @@ async function uploadAndPost() {
   if (isUploading) return; // block double click
   isUploading = true;
 
-  const btn = document.getElementById("postBtn"); // your submit button
-  btn.disabled = true;
 
   const title = document.getElementById("title").value.trim();
   const content = document.getElementById("content").value.trim();
@@ -179,7 +177,7 @@ async function uploadAndPost() {
   if (!title || !content) {
     alert("Title and content required");
     isUploading = false;
-    btn.disabled = false;
+    
     return;
   }
 
@@ -219,7 +217,7 @@ async function uploadAndPost() {
     alert("Something went wrong");
   } finally {
     isUploading = false;
-    btn.disabled = false;
+   
   }
 }
 </script>
