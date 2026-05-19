@@ -183,7 +183,7 @@ async function uploadAndPost() {
       formData.append("file", selectedFile);
     }
 
-    const res = await fetch("http://localhost:5000/posts", {
+    const res = await fetch("https://gpriv.onrender.com/posts", {
       method: "POST",
       headers: {
     "Authorization": `Bearer ${token}`  
