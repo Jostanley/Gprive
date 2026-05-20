@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat App</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="h-screen flex bg-gray-100 overflow-hidden">
+
+<!-- RIGHT CHAT  -->
+<div class="flex-1 flex flex-col">
+
+  <div class="p-4 bg-white border-b" id="chatHeader">
+    Select a chat
+  </div>
+ 
+  <div id="messages" class="flex-1 overflow-y-auto p-4 flex flex-col"></div>
+
+  <div class="p-3 bg-white flex gap-2 border-t fixed bottom-0 left-0 right-0">
+  <input id="msgInput"
+    class="flex-1 border rounded-full px-4 py-2 outline-none"
+    placeholder="Message..."
+  />
+
+  <button id="sendBtn"
+    class="bg-green-600 text-white px-5 rounded-full">
+    Send
+  </button>
+</div>
+
+</div>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+
+const supabasejs = createClient(
+  "https://edvwiqmydmxttviflouj.supabase.co","eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVkdndpcW15ZG14dHR2aWZsb3VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3OTM0OTYsImV4cCI6MjA5MzM2OTQ5Nn0.qHTl9JCvqiP7wUgA9v839aRLQOgcIGpdZDY3z44O29c"
+);
+
+// ================= STATE =================
+let activeUser = null;
+let currentUser = null;
+let channel = null;
+let statusChannel = null;
+let userMap = {};
+let editingMessageId = null;
+// ================= INIT =================
+window.onload = async () => {
+
+  const { data: { session } } = await supabasejs.auth.getSession();
+
+  if (!session) {
+    alert("Login required");
+    window.location.href = "Login.html";
+    return;
+  }
+
+  activeUser = String(session.user.id);
+ console.log(activeUser)
+  // heartbeat
+  const heartbeat = async () => {
+    await supabasejs.from("users").update({
+      is_online: true,
+      last_active: new Date().toISOString()
+    }).eq("id", activeUser);
+  };
+
+  await heartbeat();
+  setInterval(heartbeat, 15000);
+
+  const params = new URLSearchParams(window.location.search);
+  currentUser = params.get("chatUser") || params.get("userId");
+  if (currentUser) currentUser = String(currentUser);
+
+  await loadUsers();
+ 
+
+  if (currentUser) openChat(currentUser);
+
+  listenUserStatus();
+};
+
+// ================= LOAD USERS (FAST CACHE) =================
+async function loadUsers() {
+  const { data } = await supabasejs.from("users").select("*");
+  userMap = Object.fromEntries((data || []).map(u => [u.id, u]));
+}
+
+// ================= LOAD CHATS =================
+
+
+// ================= OPEN CHAT =================
+async function openChat(userId) {
+
+  currentUser = String(userId);
+
+  if (channel) {
+    supabasejs.removeChannel(channel);
+    channel = null;
+  }
+
+  const user = userMap[userId];
+
+  document.getElementById("chatHeader").innerHTML = `
+    <div class="flex justify-between items-center">
+      <div>
+        <div class="font-bold">User</div>
+        
+      </div>
+
+      <button id="clearChatBtn"
+        class="text-red-500 text-sm border px-3 py-1 rounded-full hover:bg-red-50">
+        Clear Chat
+      </button>
+    </div>
+  `;
+
+  document.getElementById("clearChatBtn").onclick = async () => {
+    if (confirm("Clear this chat?")) {
+      await clearChat(userId);
+    }
+  };
+
+  await loadMessages(userId);
+  listenMessages(userId);
+}
+
+// ================= LOAD MESSAGES =================
+async function loadMessages(userId) {
+
+  const box = document.getElementById("messages");
+
+  await supabasejs
+    .from("messages")
+    .update({ is_seen: true })
+    .eq("sender_id", userId)
+    .eq("receiver_id", activeUser)
+    .eq("is_seen", false);
+
+  const { data } = await supabasejs
+    .from("messages")
+    .select("*")
+    .or(`and(sender_id.eq.${activeUser},receiver_id.eq.${userId}),and(sender_id.eq.${userId},receiver_id.eq.${activeUser})`)
+    .order("id", { ascending: true });
+
+  box.innerHTML = "";
+  data?.forEach(renderMessage);
+
+  scrollBottom();
+}
+
+// ================= RENDER MESSAGE =================
+function renderMessage(msg) {
+
+  const isMe = msg.sender_id === activeUser;
+
+  const div = document.createElement("div");
+  div.className = `flex mb-2 ${isMe ? "justify-end" : "justify-start"} relative`;
+
+  const bubble = document.createElement("div");
+  bubble.className = `px-4 py-2 rounded-2xl text-sm max-w-[70%] ${
+    isMe ? "bg-green-600 text-white" : "bg-gray-200"
+  } relative cursor-pointer`;
+
+  bubble.innerHTML = `
+    <div>${msg.message}</div>
+    <div class="text-xs opacity-70 mt-1 flex justify-end gap-2">
+      ${timeAgo(msg.created_at)}
+      ${isMe ? (msg.is_seen ? " ✓✓" : " ✓") : ""}
+    </div>
+  `;
+
+  if (isMe) {
+
+    // popup menu
+    const menu = document.createElement("div");
+
+    menu.className =
+      "hidden absolute right-0 top-full mt-2 bg-white border shadow-lg rounded-lg text-sm z-50 overflow-hidden min-w-[120px]";
+
+    menu.innerHTML = `
+      <div class="editBtn px-4 py-3 hover:bg-gray-100 cursor-pointer text-black border-b">
+        Edit
+      </div>
+
+      <div class="deleteBtn px-4 py-3 hover:bg-red-50 cursor-pointer text-red-500">
+        Delete
+      </div>
+    `;
+
+    // show/hide on bubble click
+    bubble.onclick = (e) => {
+      e.stopPropagation();
+
+      // close all other menus
+      document.querySelectorAll(".message-menu").forEach(m => {
+        if (m !== menu) m.classList.add("hidden");
+      });
+
+      menu.classList.toggle("hidden");
+    };
+
+    menu.classList.add("message-menu");
+
+    // edit
+    // edit
+menu.querySelector(".editBtn").onclick = async (e) => {
+
+  e.stopPropagation();
+
+  const input = document.getElementById("msgInput");
+
+  // put original message into input
+  input.value = msg.message;
+
+  // store editing id
+  editingMessageId = msg.id;
+
+  // change button text
+  document.getElementById("sendBtn").textContent = "Update";
+
+  // focus input
+  input.focus();
+
+  menu.classList.add("hidden");
+};
+
+    // delete
+    menu.querySelector(".deleteBtn").onclick = async (e) => {
+      e.stopPropagation();
+
+      menu.classList.add("hidden");
+
+      if (confirm("Delete message?")) {
+        await deleteMessage(msg.id);
+      }
+    };
+
+    bubble.appendChild(menu);
+  }
+
+  div.appendChild(bubble);
+
+  document.getElementById("messages").appendChild(div);
+}
+
+// hide popup when body clicked
+document.body.addEventListener("click", () => {
+  document.querySelectorAll(".message-menu").forEach(menu => {
+    menu.classList.add("hidden");
+  });
+});
+
+// ================= REALTIME MESSAGES =================
+function listenMessages(userId) {
+
+  if (channel) {
+    supabasejs.removeChannel(channel);
+  }
+
+  channel = supabasejs
+    .channel("chat")
+
+    // NEW MESSAGE
+    .on("postgres_changes", {
+      event: "INSERT",
+      schema: "public",
+      table: "messages"
+    }, payload => {
+
+      const m = payload.new;
+
+      if (
+        (m.sender_id === activeUser && m.receiver_id === userId) ||
+        (m.sender_id === userId && m.receiver_id === activeUser)
+      ) {
+
+        renderMessage(m);
+        scrollBottom();
+        
+      }
+    })
+
+    // UPDATED MESSAGE
+    .on("postgres_changes", {
+      event: "UPDATE",
+      schema: "public",
+      table: "messages"
+    }, payload => {
+
+      const m = payload.new;
+
+      if (
+        (m.sender_id === activeUser && m.receiver_id === userId) ||
+        (m.sender_id === userId && m.receiver_id === activeUser)
+      ) {
+
+        loadMessages(userId);
+       
+      }
+    })
+
+    // DELETED MESSAGE
+    .on("postgres_changes", {
+      event: "DELETE",
+      schema: "public",
+      table: "messages"
+    }, payload => {
+
+      const m = payload.old;
+
+      if (
+        (m.sender_id === activeUser && m.receiver_id === userId) ||
+        (m.sender_id === userId && m.receiver_id === activeUser)
+      ) {
+
+        loadMessages(userId);
+        
+      }
+    })
+
+    .subscribe();
+}
+
+// ================= SEND / UPDATE =================
+document.getElementById("sendBtn").onclick = async () => {
+
+  const input = document.getElementById("msgInput");
+  const text = input.value.trim();
+
+  if (!text || !currentUser) return;
+
+  // UPDATE MESSAGE
+  if (editingMessageId) {
+
+    await supabasejs
+      .from("messages")
+      .update({ message: text })
+      .eq("id", editingMessageId);
+
+    editingMessageId = null;
+
+    document.getElementById("sendBtn").textContent = "Send";
+
+    await loadMessages(currentUser);
+
+  } else {
+
+    // SEND NEW MESSAGE
+    await supabasejs.from("messages").insert({
+      sender_id: activeUser,
+      receiver_id: currentUser,
+      message: text,
+      is_seen: false
+    });
+  }
+
+  input.value = "";
+  scrollBottom();
+};
+
+
+
+// ================= EDIT / DELETE =================
+async function editMessage(id, message) {
+  await supabasejs.from("messages").update({ message }).eq("id", id);
+  loadMessages(currentUser);
+}
+
+async function deleteMessage(id) {
+  await supabasejs.from("messages").delete().eq("id", id);
+  loadMessages(currentUser);
+}
+
+// ================= CLEAR CHAT =================
+async function clearChat(userId) {
+
+  if (channel) {
+    await supabasejs.removeChannel(channel);
+    channel = null;
+  }
+
+  const me = (await supabasejs.auth.getUser()).data.user;
+
+  const { data: messages, error } = await supabasejs
+    .from("messages")
+    .select("id, deleted_for")
+    .or(
+      `and(sender_id.eq.${me.id},receiver_id.eq.${userId}),and(sender_id.eq.${userId},receiver_id.eq.${me.id})`
+    );
+
+  if (error) {
+    console.log(error.message);
+    return;
+  }
+
+  for (const msg of (messages ?? [])) {
+    const updated = [...(msg.deleted_for || []), me.id];
+
+    await supabasejs
+      .from("messages")
+      .update({ deleted_for: updated })
+      .eq("id", msg.id);
+  }
+
+  document.getElementById("messages").innerHTML = "";
+  document.getElementById("chatHeader").innerHTML = "Select a chat";
+
+  
+}
+
+// ================= USER STATUS =================
+function listenUserStatus() {
+
+  if (statusChannel) {
+    supabasejs.removeChannel(statusChannel);
+    statusChannel = null;
+  }
+
+  statusChannel = supabasejs
+    .channel("users-status")
+    .on("postgres_changes", {
+      event: "UPDATE",
+      schema: "public",
+      table: "users"
+    }, payload => {
+
+      if (String(payload.new.id) === String(currentUser)) {
+        openChat(currentUser);
+        
+      }
+    })
+    .subscribe();
+}
+
+// ================= UTIL =================
+function scrollBottom() {
+  const box = document.getElementById("messages");
+  box.scrollTop = box.scrollHeight;
+}
+
+function timeAgo(date) {
+
+  if (!date) return "Now";
+
+  const sec = Math.floor((Date.now() - new Date(date)) / 1000);
+
+  if (sec < 60) return "Just now";
+
+  const units = [
+    ["year", 31536000],
+    ["month", 2592000],
+    ["day", 86400],
+    ["hour", 3600],
+    ["minute", 60]
+  ];
+
+  for (let [n, v] of units) {
+    const c = Math.floor(sec / v);
+    if (c > 0) return `${c} ${n}${c > 1 ? "s" : ""} ago`;
+  }
+
+  return "Just now";
+}
+</script>
+
+</body>
+</html>
