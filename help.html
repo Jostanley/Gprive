@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Help Center - Gprive</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100 p-4">
+
+  <!-- Header -->
+  <div class="bg-white p-4 shadow flex items-center rounded-xl max-w-xl mx-auto">
+    <button onclick="history.back()" class="mr-3 text-xl"></button>
+    <h1 class="font-bold text-lg">Help Center</h1>
+  </div>
+
+  <!-- Search -->
+  <div class="max-w-xl mx-auto mt-4">
+    <input 
+      type="text"
+      placeholder="Search help articles..."
+      class="w-full p-3 border rounded-xl shadow"
+      oninput="searchFAQ(this.value)"
+    />
+  </div>
+
+  <!-- FAQ -->
+  <div class="max-w-xl mx-auto mt-4 space-y-3">
+
+    <div class="bg-white p-4 rounded-xl shadow faq">
+      <h2 class="font-bold">How do I change my password?</h2>
+      <p class="text-gray-600 mt-2">
+        Go to Settings → Account → Change Password and update your details.
+      </p>
+    </div>
+
+    <div class="bg-white p-4 rounded-xl shadow faq">
+      <h2 class="font-bold">How do I delete my account?</h2>
+      <p class="text-gray-600 mt-2">
+        Go to Settings → Danger Zone → Delete Account.
+      </p>
+    </div>
+
+    <div class="bg-white p-4 rounded-xl shadow faq">
+      <h2 class="font-bold">Why can’t I post?</h2>
+      <p class="text-gray-600 mt-2">
+        Check your internet connection or ensure your account is not restricted.
+      </p>
+    </div>
+
+    <div class="bg-white p-4 rounded-xl shadow faq">
+      <h2 class="font-bold">How do I report abuse?</h2>
+      <p class="text-gray-600 mt-2">
+        Tap any post → Report → Select reason and submit.
+      </p>
+    </div>
+
+    <div class="bg-white p-4 rounded-xl shadow faq">
+      <h2 class="font-bold">Is Gprive really anonymous?</h2>
+      <p class="text-gray-600 mt-2">
+        Yes. We do not require real identity information to use the platform.
+      </p>
+    </div>
+
+  </div>
+
+  <!-- Contact support shortcut -->
+  <div class="max-w-xl mx-auto mt-6">
+    <button onclick="goSupport()" class="w-full bg-green-600 text-white p-3 rounded-xl">
+      Contact Support
+    </button>
+  </div>
+
+  <script>
+    function goSupport() {
+      window.location.href = "contact-support.html";
+    }
+
+    function searchFAQ(value) {
+      const items = document.querySelectorAll(".faq");
+      items.forEach(item => {
+        const text = item.innerText.toLowerCase();
+        item.style.display = text.includes(value.toLowerCase()) ? "block" : "none";
+      });
+    }
+  </script>
+
+</body>
+</html>

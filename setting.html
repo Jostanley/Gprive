@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Settings - Gprive</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100 pb-20">
+
+  <!-- Header -->
+  <div class="bg-white p-4 shadow flex items-center">
+    <button onclick="history.back()" class="text-xl mr-4">←</button>
+    <h1 class="font-bold text-xl"> Settings</h1>
+  </div>
+
+  <div class="p-4 space-y-4">
+
+    <!-- ACCOUNT -->
+    <div class="bg-white rounded-xl shadow">
+      <h2 class="font-bold p-4 border-b"> Account</h2>
+
+      <button onclick="go('forgot.html')" class="w-full text-left p-4">
+        Change Password
+      </button>
+    </div>
+
+    <!-- APPEARANCE -->
+    <div class="bg-white rounded-xl shadow">
+      <h2 class="font-bold p-4 border-b"> Appearance</h2>
+
+      <div class="p-4 flex gap-2">
+        <button onclick="setTheme('light')" class="border px-4 py-2 rounded">
+           Light
+        </button>
+
+        <button onclick="setTheme('dark')" class="border px-4 py-2 rounded">
+           Dark
+        </button>
+      </div>
+    </div>
+
+    <!-- PRIVACY -->
+    <div class="bg-white rounded-xl shadow">
+      <h2 class="font-bold p-4 border-b"> Privacy</h2>
+
+      
+
+      <button onclick="go('blocked.html')" class="w-full text-left p-4 border-b">
+        Blocked Users
+      </button>
+
+    </div>
+
+ 
+
+    <!-- DATA -->
+    <div class="bg-white rounded-xl shadow">
+      <h2 class="font-bold p-4 border-b"> Data & Storage</h2>
+
+      <button onclick="downloadData()" class="w-full text-left p-4 border-b">
+        Download My Data
+      </button>
+
+      <button onclick="clearCache()" class="w-full text-left p-4">
+        Clear Cache
+      </button>
+    </div>
+
+    <!-- SUPPORT -->
+    <div class="bg-white rounded-xl shadow">
+      <h2 class="font-bold p-4 border-b"> Support</h2>
+
+      <button onclick="go('support.html')" class="w-full text-left p-4 border-b">
+        Help Center
+      </button>
+
+      <button onclick="go('contact-support.html')" class="w-full text-left p-4 border-b">
+        Contact Support
+      </button>
+
+      <button onclick="go('report.html')" class="w-full text-left p-4">
+        Report a Problem
+      </button>
+    </div>
+
+    <!-- ABOUT -->
+    <div class="bg-white rounded-xl shadow">
+      <h2 class="font-bold p-4 border-b"> About</h2>
+
+      <button onclick="go('about.html')" class="w-full text-left p-4 border-b">
+        About Gprive
+      </button>
+
+      <button onclick="go('terms.html')" class="w-full text-left p-4 border-b">
+        Terms of Service
+      </button>
+
+      <button onclick="go('privacy-policy.html')" class="w-full text-left p-4">
+        Privacy Policy
+      </button>
+    </div>
+
+    <!-- DANGER -->
+    <div class="bg-white rounded-xl shadow">
+      <h2 class="font-bold p-4 border-b text-red-500">
+        Danger Zone
+      </h2>
+
+      <button onclick="deletePosts()" class="w-full text-left p-4 border-b text-red-500">
+        Delete All Posts
+      </button>
+
+      <button onclick="go('danger-zone.html')" class="w-full text-left p-4 text-red-500">
+        Delete Account
+      </button>
+    </div>
+
+    <!-- LOGOUT -->
+    <button onclick="logout()" class="w-full bg-red-500 text-white p-4 rounded-xl">
+      Logout
+    </button>
+
+  </div>
+
+  <script>
+    // NAVIGATION
+    function go(page) {
+      window.location.href = page;
+    }
+
+    // THEME
+    function setTheme(theme) {
+      localStorage.setItem("theme", theme);
+      alert("Theme set to " + theme);
+    }
+
+    // DOWNLOAD DATA (mock)
+    function downloadData() {
+      alert("Preparing your data download...");
+    }
+
+    // CLEAR CACHE
+    function clearCache() {
+      localStorage.clear();
+      alert("Cache cleared!");
+    }
+
+    // DELETE POSTS (mock)
+    function deletePosts() {
+      if (confirm("Delete all posts? This cannot be undone.")) {
+        alert("All posts deleted (mock)");
+      }
+    }
+
+    // LOGOUT
+    function logout() {
+      if (confirm("Are you sure you want to logout?")) {
+        alert("Logged out");
+        window.location.href = "login.html";
+      }
+    }
+  </script>
+
+</body>
+</html>
