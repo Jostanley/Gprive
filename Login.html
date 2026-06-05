@@ -31,7 +31,7 @@
   <!-- Toggle Button -->
   <button 
     type="button"
-    onclick="togglePassword()"
+    onclick="togglePassword(this)"
     class="absolute right-2 top-2 text-sm text-gray-600">
     Show
   </button>
@@ -76,67 +76,76 @@
   </div>
 
   <script>
-    const supabasejs = window.supabase.createClient(
-          "https://edvwiqmydmxttviflouj.supabase.co","eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVkdndpcW15ZG14dHR2aWZsb3VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3OTM0OTYsImV4cCI6MjA5MzM2OTQ5Nn0.qHTl9JCvqiP7wUgA9v839aRLQOgcIGpdZDY3z44O29c"
-    );
+const supabasejs = window.supabase.createClient(
+  "https://edvwiqmydmxttviflouj.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVkdndpcW15ZG14dHR2aWZsb3VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3OTM0OTYsImV4cCI6MjA5MzM2OTQ5Nn0.qHTl9JCvqiP7wUgA9v839aRLQOgcIGpdZDY3z44O29c"
+);
 
-    async function login() {
-      const email = document.getElementById("login-email").value;
-      const password = document.getElementById("password").value;
-      const msg = document.getElementById("msg");
+async function login() {
+  const email = document.getElementById("login-email").value.trim();
+  const password = document.getElementById("password").value;
+  const msg = document.getElementById("msg");
 
-      msg.innerText = "";
+  msg.innerText = "";
 
-      if (!email || !password) {
-        msg.innerText = "Fill in all fields";
-        msg.style.color = "red";
-        return;
-      }
-
-      const { data, error } = await supabasejs.auth.signInWithPassword({
-        email,
-        password
-      });
-
-      if (error) {
-        msg.innerText = error.message;
-        msg.style.color = "red";
-        return;
-      }
-const userId = data.user.id;
-
-const { data: user } = await supabase
-  .from("users")
-  .select("is_admin")
-  .eq("id", userId)
-  .single();
-
-// Admin → Admin Dashboard
-if (user?.is_admin) {
-  window.location.href = "/admin/admindashboard.html";
-} else {
-  
-      msg.innerText = "Login successful!";
-      msg.style.color = "green";
-
-      setTimeout(() => {
-        window.location.href = "index.html";
-      }, 1000);
-    }
-    
-    function togglePassword() {
-    const input = document.getElementById("password");
-    const btn = event.target;
-
-    if (input.type === "password") {
-      input.type = "text";
-      btn.innerText = "Hide";
-    } else {
-      input.type = "password";
-      btn.innerText = "Show";
-    }
+  if (!email || !password) {
+    msg.innerText = "Fill in all fields";
+    msg.style.color = "red";
+    return;
   }
-  </script>
 
+  const { data, error } =
+    await supabasejs.auth.signInWithPassword({
+      email,
+      password
+    });
+
+  if (error) {
+    msg.innerText = error.message;
+    msg.style.color = "red";
+    return;
+  }
+
+  const userId = data.user.id;
+
+  const { data: user, error: userError } =
+    await supabasejs
+      .from("users")
+      .select("is_admin")
+      .eq("id", userId)
+      .single();
+
+  if (userError) {
+    console.error(userError);
+    msg.innerText = "Unable to load user data";
+    msg.style.color = "red";
+    return;
+  }
+
+  if (user?.is_admin) {
+    window.location.href = "/admin/admindashboard.html";
+    return;
+  }
+
+  msg.innerText = "Login successful!";
+  msg.style.color = "green";
+
+  setTimeout(() => {
+    window.location.href = "index.html";
+  }, 1000);
+}
+
+function togglePassword(btn) {
+  const input = document.getElementById("password");
+
+  if (input.type === "password") {
+    input.type = "text";
+    btn.innerText = "Hide";
+  } else {
+    input.type = "password";
+    btn.innerText = "Show";
+  }
+}
+</script>
 </body>
 </html>
