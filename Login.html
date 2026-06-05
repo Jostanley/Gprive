@@ -103,9 +103,19 @@
         msg.style.color = "red";
         return;
       }
+const userId = data.user.id;
 
-      localStorage.setItem("token", data.session.access_token);
+const { data: user } = await supabase
+  .from("users")
+  .select("is_admin")
+  .eq("id", userId)
+  .single();
 
+// Admin → Admin Dashboard
+if (user?.is_admin) {
+  window.location.href = "/admin/admindashboard.html";
+} else {
+  
       msg.innerText = "Login successful!";
       msg.style.color = "green";
 
