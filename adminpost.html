@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Posts Admin</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100 p-6">
+
+<h1 class="text-3xl font-bold mb-5">Posts</h1>
+
+<input
+  id="search"
+  placeholder="Search posts..."
+  class="border p-2 rounded w-full mb-4"
+/>
+
+<div class="bg-white rounded shadow overflow-auto">
+
+  <table class="w-full">
+
+    <thead class="bg-gray-200">
+      <tr>
+        <th class="p-3 text-left">User</th>
+        <th class="p-3 text-left">Content</th>
+        <th class="p-3 text-left">Media</th>
+        <th class="p-3 text-left">Stats</th>
+        <th class="p-3 text-left">Actions</th>
+      </tr>
+    </thead>
+
+    <tbody id="postsTable"></tbody>
+
+  </table>
+
+</div>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+
+const supabase = createClient(
+  "https://edvwiqmydmxttviflouj.supabase.co","eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVkdndpcW15ZG14dHR2aWZsb3VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3OTM0OTYsImV4cCI6MjA5MzM2OTQ5Nn0.qHTl9JCvqiP7wUgA9v839aRLQOgcIGpdZDY3z44O29c"
+
+);
+
+let posts = [];
+let likes = [];
+
+
+// =====================
+// CHECK ADMIN ACCESS
+// =====================
+window.onload = async function() {
+
+  const {
+    data: { session }
+  } = await supabase.auth.getSession();
+
+  // Not logged in
+  if (!session) {
+    alert("Login required");
+    window.location.href = "../Login.html";
+    return false;
+  }
+
+  // Get user record
+  const { data: user, error } = await supabase
+    .from("users")
+    .select("is_admin")
+    .eq("id", session.user.id)
+    .single();
+
+  if (error || !user) {
+    alert("User not found");
+    window.location.href = "../login.html";
+    return false;
+  }
+
+  // Not admin
+  if (!user.is_admin) {
+    alert("Access denied");
+    window.location.href = "../index.html";
+    return false;
+  }
+ window.location.href ="../admindashboard.html"
+  return true;
+}
+// ================= LOAD POSTS =================
+async function loadPosts() {
+
+  const { data, error } = await supabase
+    .from("posts")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.log(error);
+    return;
+  }
+
+  const { data: likeData } = await supabase
+    .from("post_likes")
+    .select("*");
+
+  posts = data || [];
+  likes = likeData || [];
+
+  render(posts);
+}
+
+// ================= RENDER =================
+function render(data) {
+
+  const tbody = document.getElementById("postsTable");
+
+  tbody.innerHTML = data.map(post => {
+
+    const likeCount = likes.filter(l => l.post_id === post.id).length;
+
+    return `
+      <tr class="border-b">
+
+        <!-- USER -->
+        <td class="p-3 text-sm">
+          ${post.username || "Unknown"}
+        </td>
+
+        <!-- CONTENT -->
+        <td class="p-3 max-w-[250px]">
+          <div class="text-sm font-medium">
+            ${post.title || ""}
+          </div>
+          <div class="text-xs text-gray-500 truncate">
+            ${post.content || ""}
+          </div>
+        </td>
+
+        <!-- MEDIA -->
+        <td class="p-3">
+          ${
+            post.file
+              ? `<img src="${post.file}" class="w-16 h-16 object-cover rounded"/>`
+              : "-"
+          }
+        </td>
+
+        <!-- STATS -->
+        <td class="p-3 text-sm">
+          ❤️ ${likeCount}
+        </td>
+
+        <!-- ACTIONS -->
+        <td class="p-3">
+
+          <div class="flex gap-2">
+
+            <button
+              onclick="deletePost('${post.id}')"
+              class="px-3 py-1 bg-red-500 text-white rounded text-sm">
+              Delete
+            </button>
+
+            <button
+              onclick="promotePost('${post.id}')"
+              class="px-3 py-1 bg-green-600 text-white rounded text-sm">
+              Promote
+            </button>
+
+            <button
+              onclick="viewPost('${post.id}')"
+              class="px-3 py-1 bg-gray-600 text-white rounded text-sm">
+              View
+            </button>
+
+          </div>
+
+        </td>
+
+      </tr>
+    `;
+  }).join("");
+}
+
+// ================= ACTIONS =================
+
+// DELETE POST
+window.deletePost = async (id) => {
+
+  const ok = confirm("Delete this post?");
+  if (!ok) return;
+
+  const { error } = await supabase
+    .from("posts")
+    .delete()
+    .eq("id", id);
+
+  if (error) {
+    alert(error.message);
+    return;
+  }
+
+  loadPosts();
+};
+
+// PROMOTE POST
+window.promotePost = async (id) => {
+
+  const { error } = await supabase
+    .from("promoted_posts")
+    .insert({
+      post_id: id,
+      active: true
+    });
+
+  if (error) {
+    alert(error.message);
+    return;
+  }
+
+  alert("Post promoted");
+};
+
+// VIEW POST
+window.viewPost = (id) => {
+  window.open(`../post.html?id=${id}`, "_blank");
+};
+
+// ================= SEARCH =================
+document.getElementById("search").addEventListener("input", e => {
+
+  const value = e.target.value.toLowerCase();
+
+  const filtered = posts.filter(post =>
+    (post.title || "").toLowerCase().includes(value) ||
+    (post.content || "").toLowerCase().includes(value) ||
+    (post.username || "").toLowerCase().includes(value)
+  );
+
+  render(filtered);
+});
+
+// INIT
+loadPosts();
+
+</script>
+
+</body>
+</html>

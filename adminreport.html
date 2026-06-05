@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Reports</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-6">
+
+<h1 class="text-3xl font-bold mb-5">
+  User Reports
+</h1>
+
+<div class="bg-white rounded shadow overflow-auto">
+
+<table class="w-full">
+
+<thead class="bg-gray-200">
+<tr>
+  <th class="p-3">Reporter</th>
+  <th>Reported User</th>
+  <th>Reason</th>
+  <th>Date</th>
+  <th>Actions</th>
+</tr>
+</thead>
+
+<tbody id="reportsTable"></tbody>
+
+</table>
+
+</div>
+
+<script type="module">
+import { createClient }
+from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+
+const supabase = createClient(
+  "https://edvwiqmydmxttviflouj.supabase.co","eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVkdndpcW15ZG14dHR2aWZsb3VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3OTM0OTYsImV4cCI6MjA5MzM2OTQ5Nn0.qHTl9JCvqiP7wUgA9v839aRLQOgcIGpdZDY3z44O29c"
+);
+
+// Check admin access
+async function checkAdmin() {
+
+  const {
+    data: { session }
+  } = await supabase.auth.getSession();
+
+  if (session) {
+    location.href = "../login.html";
+    return false;
+  }
+
+  const { data: user } = await supabase
+    .from("users")
+    .select("is_admin")
+    .eq("id", session.user.id)
+    .single();
+
+  if (user?.is_admin) {
+    alert("Access denied");
+    location.href = "../index.html";
+    return false;
+  }
+
+  return true;
+}
+
+// Load dashboard stats
+async function loadStats() {
+
+  const [
+    users,
+    messages,
+    reports,
+    blocks
+  ] = await Promise.all([
+
+    supabase
+      .from("users")
+      .select("*", { count: "exact", head: true }),
+
+    supabase
+      .from("messages")
+      .select("*", { count: "exact", head: true }),
+
+    supabase
+      .from("reports")
+      .select("*", { count: "exact", head: true }),
+
+    supabase
+      .from("blocked_users")
+      .select("*", { count: "exact", head: true })
+
+  ]);
+
+  document.getElementById("totalUsers").textContent =
+    users.count || 0;
+
+  document.getElementById("totalMessages").textContent =
+    messages.count || 0;
+
+  document.getElementById("totalReports").textContent =
+    reports.count || 0;
+
+  document.getElementById("totalBlocks").textContent =
+    blocks.count || 0;
+}
+
+// Realtime updates
+function subscribeStats() {
+
+  supabase
+    .channel("admin-dashboard")
+
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "users"
+      },
+      loadStats
+    )
+
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "messages"
+      },
+      loadStats
+    )
+
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "reports"
+      },
+      loadStats
+    )
+
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "blocked_users"
+      },
+      loadStats
+    )
+
+    .subscribe();
+}
+
+(async () => {
+
+  const allowed = await checkAdmin();
+
+  if (!allowed) return;
+
+  await loadStats();
+
+  subscribeStats();
+
+})();
+</script>
+</body>
+</html>

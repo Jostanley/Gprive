@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Admin Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100">
+
+<div class="flex">
+
+  <!-- SIDEBAR -->
+  <aside class="w-64 h-screen bg-gray-900 text-white p-5">
+    <h1 class="text-2xl font-bold mb-8">Admin</h1>
+
+    <nav class="space-y-3">
+      <a href="dashboard.html" class="block font-bold text-green-400">Dashboard</a>
+      <a href="adminusers.html" class="block">Users</a>
+      <a href="adminpost.html" class="block">Posts</a>
+      <a href="adminreport.html" class="block">Reports</a>
+      <a href="blocked-users.html" class="block">Blocked Users</a>
+      <a href="setting.html" class="block">Settings</a>
+    </nav>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="flex-1 p-6">
+
+    <h2 class="text-3xl font-bold mb-6">Dashboard</h2>
+
+    <!-- STATS GRID -->
+    <div class="grid md:grid-cols-5 gap-4">
+
+      <div class="bg-white p-5 rounded-xl shadow">
+        <h3>Total Users</h3>
+        <p id="totalUsers" class="text-3xl font-bold">0</p>
+      </div>
+
+      <div class="bg-white p-5 rounded-xl shadow">
+        <h3>Messages</h3>
+        <p id="totalMessages" class="text-3xl font-bold">0</p>
+      </div>
+
+      <div class="bg-white p-5 rounded-xl shadow border-l-4 border-green-500">
+        <h3>Total Posts</h3>
+        <p id="totalPosts" class="text-3xl font-bold">0</p>
+      </div>
+
+      <div class="bg-white p-5 rounded-xl shadow">
+        <h3>Reports</h3>
+        <p id="totalReports" class="text-3xl font-bold">0</p>
+      </div>
+
+      <div class="bg-white p-5 rounded-xl shadow">
+        <h3>Blocked Users</h3>
+        <p id="totalBlocks" class="text-3xl font-bold">0</p>
+      </div>
+
+    </div>
+
+    <!-- QUICK ACTIONS -->
+    <div class="mt-8">
+      <a href="index.html"
+         class="bg-green-600 text-white px-4 py-2 rounded-lg">
+        Manage Posts
+      </a>
+    </div>
+
+  </main>
+
+</div>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+
+const supabase = createClient(
+  "https://edvwiqmydmxttviflouj.supabase.co","eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVkdndpcW15ZG14dHR2aWZsb3VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3OTM0OTYsImV4cCI6MjA5MzM2OTQ5Nn0.qHTl9JCvqiP7wUgA9v839aRLQOgcIGpdZDY3z44O29c"
+);
+
+window.onload = async () => {
+
+  const {
+    data: { session }
+  } = await supabase.auth.getSession();
+
+  // Not logged in
+  if (!session) {
+    alert("Login required");
+    window.location.href = "./Login.html";
+    return;
+  }
+
+  // Get user record
+  const { data: user, error } = await supabase
+    .from("users")
+    .select("is_admin")
+    .eq("id", session.user.id)
+    .single();
+
+  if (error || !user) {
+    alert("User not found");
+    window.location.href = "./login.html";
+    return;
+  }
+
+  // Not admin
+  if (!user.is_admin) {
+    alert("Access denied");
+    window.location.href = "./index.html";
+    return;
+  }
+
+  // Load dashboard data
+  await loadStats();
+};
+
+// ================= LOAD DASHBOARD DATA =================
+async function loadStats() {
+
+  try {
+
+    // USERS
+    const { count: users } = await supabase
+      .from("users")
+      .select("*", { count: "exact", head: true });
+
+    // MESSAGES
+    const { count: messages } = await supabase
+      .from("messages")
+      .select("*", { count: "exact", head: true });
+
+    // POSTS (NEW)
+    const { count: posts } = await supabase
+      .from("posts")
+      .select("*", { count: "exact", head: true });
+
+    // REPORTS
+    const { count: reports } = await supabase
+      .from("reports")
+      .select("*", { count: "exact", head: true });
+
+    // BLOCKS
+    const { count: blocks } = await supabase
+      .from("blocked_users")
+      .select("*", { count: "exact", head: true });
+
+    // ================= UPDATE UI =================
+    document.getElementById("totalUsers").textContent = users || 0;
+    document.getElementById("totalMessages").textContent = messages || 0;
+    document.getElementById("totalPosts").textContent = posts || 0;
+    document.getElementById("totalReports").textContent = reports || 0;
+    document.getElementById("totalBlocks").textContent = blocks || 0;
+
+  } catch (err) {
+    console.log("Dashboard error:", err);
+  }
+}
+
+// ================= INIT =================
+
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Blocked Users</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100 min-h-screen p-4">
+
+<div class="max-w-6xl mx-auto">
+
+  <div class="flex justify-between items-center mb-6">
+    <h1 class="text-3xl font-bold">
+      Blocked Users
+    </h1>
+
+    <a
+      href="admindashboard.html"
+      class="bg-blue-600 text-white px-4 py-2 rounded-lg">
+      Dashboard
+    </a>
+  </div>
+
+  <div class="bg-white rounded-xl shadow overflow-hidden">
+
+    <table class="w-full">
+
+      <thead class="bg-gray-200">
+
+        <tr>
+          <th class="p-3 text-left">
+            Blocked By
+          </th>
+
+          <th class="p-3 text-left">
+            Blocked User
+          </th>
+
+          <th class="p-3 text-left">
+            Date
+          </th>
+
+          <th class="p-3 text-left">
+            Actions
+          </th>
+        </tr>
+
+      </thead>
+
+      <tbody id="blockedTable">
+
+        <tr>
+          <td colspan="4" class="p-5 text-center">
+            Loading...
+          </td>
+        </tr>
+
+      </tbody>
+
+    </table>
+
+  </div>
+
+</div>
+
+<script type="module">
+
+import { createClient }
+from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+
+const supabase = createClient(
+  "https://edvwiqmydmxttviflouj.supabase.co","eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVkdndpcW15ZG14dHR2aWZsb3VqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3OTM0OTYsImV4cCI6MjA5MzM2OTQ5Nn0.qHTl9JCvqiP7wUgA9v839aRLQOgcIGpdZDY3z44O29c"
+);
+
+// =====================
+// ADMIN CHECK
+// =====================
+
+async function checkAdmin() {
+
+  const {
+    data: { session }
+  } = await supabase.auth.getSession();
+
+  if (!session) {
+    location.href = "../Login.html";
+    return false;
+  }
+
+  const { data } = await supabase
+    .from("users")
+    .select("is_admin")
+    .eq("id", session.user.id)
+    .single();
+
+  if (data?.is_admin) {
+
+    alert("Access denied");
+
+    location.href = "../index.html";
+
+    return false;
+  }
+
+  return true;
+}
+
+// =====================
+// LOAD BLOCKED USERS
+// =====================
+
+async function loadBlockedUsers() {
+
+  const table =
+    document.getElementById("blockedTable");
+
+  table.innerHTML = `
+    <tr>
+      <td colspan="4" class="p-5 text-center">
+        Loading...
+      </td>
+    </tr>
+  `;
+
+  const { data: blocks, error } =
+    await supabase
+      .from("blocked_users")
+      .select("*")
+      .order("created_at", {
+        ascending: false
+      });
+
+  if (error) {
+
+    table.innerHTML = `
+      <tr>
+        <td colspan="4" class="p-5 text-center text-red-500">
+          Failed to load
+        </td>
+      </tr>
+    `;
+
+    return;
+  }
+
+  if (!blocks?.length) {
+
+    table.innerHTML = `
+      <tr>
+        <td colspan="4" class="p-5 text-center">
+          No blocked users
+        </td>
+      </tr>
+    `;
+
+    return;
+  }
+
+  const userIds = [
+    ...new Set(
+      blocks.flatMap(block => [
+        block.blocker_id,
+        block.blocked_id
+      ])
+    )
+  ];
+
+  const { data: users } =
+    await supabase
+      .from("users")
+      .select("id, username");
+
+  const userMap = {};
+
+  users?.forEach(user => {
+    userMap[user.id] =
+      user.username || "Unknown User";
+  });
+
+  table.innerHTML = "";
+
+  blocks.forEach(block => {
+
+    table.innerHTML += `
+      <tr class="border-b">
+
+        <td class="p-3">
+          ${userMap[block.blocker_id] || block.blocker_id}
+        </td>
+
+        <td class="p-3">
+          ${userMap[block.blocked_id] || block.blocked_id}
+        </td>
+
+        <td class="p-3">
+          ${new Date(
+            block.created_at
+          ).toLocaleString()}
+        </td>
+
+        <td class="p-3">
+
+          <button
+            onclick="unblockUser('${block.id}')"
+            class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded">
+
+            Unblock
+
+          </button>
+
+        </td>
+
+      </tr>
+    `;
+  });
+}
+
+// =====================
+// UNBLOCK USER
+// =====================
+
+window.unblockUser = async function(blockId) {
+
+  if (!confirm("Unblock this user?"))
+    return;
+
+  const { error } =
+    await supabase
+      .from("blocked_users")
+      .delete()
+      .eq("id", blockId);
+
+  if (error) {
+
+    alert(error.message);
+
+    return;
+  }
+
+  alert("User unblocked");
+
+  loadBlockedUsers();
+};
+
+// =====================
+// REALTIME
+// =====================
+
+function subscribeRealtime() {
+
+  supabase
+
+    .channel("admin-blocks")
+
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "blocked_users"
+      },
+      () => {
+        loadBlockedUsers();
+      }
+    )
+
+    .subscribe();
+}
+
+// =====================
+// INIT
+// =====================
+
+(async () => {
+
+  const ok =
+    await checkAdmin();
+
+  if (!ok) return;
+
+  await loadBlockedUsers();
+
+  subscribeRealtime();
+
+})();
+
+</script>
+
+</body>
+</html>
