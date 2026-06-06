@@ -95,7 +95,7 @@ async function checkAdmin() {
     .eq("id", session.user.id)
     .single();
 
-  if (data?.is_admin) {
+  if (!data?.is_admin) {
 
     alert("Access denied");
 
