@@ -40,27 +40,37 @@ const supabase = createClient(
 
 // Check admin access
 async function checkAdmin() {
-
-  const {
+const {
     data: { session }
   } = await supabase.auth.getSession();
 
+  // Not logged in
   if (!session) {
-    location.href = "../login.html";
+    alert("Login required");
+    window.location.href = "../Login.html";
     return false;
   }
 
-  const { data: user } = await supabase
+  // Get user record
+  const { data: user, error } = await supabase
     .from("users")
     .select("is_admin")
     .eq("id", session.user.id)
     .single();
 
-  if (!user?.is_admin) {
-    alert("Access denied");
-    location.href = "../index.html";
+  if (error || !user) {
+    alert("User not found");
+    window.location.href = "../login.html";
     return false;
   }
+
+  // Not admin
+  if (!user.is_admin) {
+    alert("Access denied");
+    window.location.href = "../index.html";
+    return false;
+  }
+  
 }
 
 // Load dashboard stats
