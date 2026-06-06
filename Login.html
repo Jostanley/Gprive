@@ -117,16 +117,21 @@ async function login() {
 
   if (userError) {
     console.error(userError);
+    email.value ="";
+  password.value = "";
     msg.innerText = "Unable to load user data";
     msg.style.color = "red";
     return;
   }
 
   if (user?.is_admin) {
+    email.value ="";
+  password.value = "";
     window.location.href = "/admindashboard.html";
     return;
   }
-
+ email.value ="";
+  password.value = "";
   msg.innerText = "Login successful!";
   msg.style.color = "green";
 
