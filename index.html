@@ -141,7 +141,7 @@ if (!data) {
     .from("users")
     .insert({
       id: currentUser,
-      name: user.email,
+      email: user.email,
       avatar: user.user_metadata?.avatar || null,
       is_online: true,
       last_seen: new Date().toISOString()
