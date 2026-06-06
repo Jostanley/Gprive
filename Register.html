@@ -126,11 +126,14 @@
       });
 
       if (error) {
+        email.value ="";
+        password.value = "";
         msg.innerText = error.message;
         msg.style.color = "red";
         return;
       }
-
+      email.value ="";
+      password.value = "";
       msg.innerText = "Account created! Check your email.";
       msg.style.color = "green";
     }
