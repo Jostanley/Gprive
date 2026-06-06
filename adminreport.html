@@ -56,7 +56,7 @@ async function checkAdmin() {
     .eq("id", session.user.id)
     .single();
 
-  if (user?.is_admin) {
+  if (!user?.is_admin) {
     alert("Access denied");
     location.href = "../index.html";
     return false;
