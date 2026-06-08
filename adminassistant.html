@@ -30,7 +30,7 @@
 
     <div
       id="chatBox"
-      class="flex-1 overflow-y-auto p-4  w-16">
+      class="flex-1 overflow-y-auto p-4">
     </div>
 
     <div class="bg-white border-t p-3 flex gap-2">
@@ -139,68 +139,79 @@ async function loadUsers() {
   });
 
 }
-
-
-window.selectUser = async function(user){
+window.selectUser = async function(user) {
 
   selectedUser = user;
 
-  document.getElementById(
-    "chatHeader"
-  ).innerText =
+  // Clear old messages immediately
+  chatBox.innerHTML = "";
+
+  document.getElementById("chatHeader").innerText =
     "Chat with " + user;
 
-  loadChat();
-
+  await loadChat();
 };
+
 
 // ====================
 // LOAD CHAT
 // ====================
+
 async function loadChat() {
 
   if (!selectedUser) return;
+
+  const currentUser = selectedUser;
 
   const { data, error } = await supabase
     .from("messages")
     .select("*")
     .or(
-      `and(sender_id.eq.${selectedUser},receiver_id.eq.${admin}),and(sender_id.eq.${admin},receiver_id.eq.${selectedUser})`
+      `and(sender_id.eq.${currentUser},receiver_id.eq.${admin}),and(sender_id.eq.${admin},receiver_id.eq.${currentUser})`
     )
     .order("created_at", { ascending: true });
 
-  console.log("Admin:", admin);
-  console.log("Selected User:", selectedUser);
-  console.log("Messages:", data);
-  console.log("Error:", error);
+  // User changed while request was loading
+  if (currentUser !== selectedUser) return;
 
   if (error) {
+    console.log(error);
     alert(error.message);
     return;
   }
 
   chatBox.innerHTML = "";
 
+  if (!data || data.length === 0) {
+    chatBox.innerHTML =
+      "<div class='text-gray-500'>No messages</div>";
+    return;
+  }
+
   data.forEach(msg => {
 
-    const isAdmin =
-      msg.sender_id === admin;
+    const isAdmin = msg.sender_id === admin;
 
-    chatBox.innerHTML += `
-      <div class="
-        mb-2
-        p-3
-        rounded
-        max-w-[80%]
-        ${isAdmin ? "bg-green-100 ml-auto" : "bg-white"}
-      ">
-        ${msg.message || ""}
-      </div>
+    const div = document.createElement("div");
+
+    div.className = `
+      mb-2
+      p-3
+      rounded
+      max-w-[80%]
+      ${isAdmin ? "bg-green-100 ml-auto" : "bg-white"}
     `;
+
+    div.textContent = msg.message || "";
+
+    chatBox.appendChild(div);
+
   });
 
   chatBox.scrollTop = chatBox.scrollHeight;
 }
+
+
 // ====================
 // SEND REPLY
 // ====================
@@ -268,14 +279,7 @@ supabase
 
 loadUsers();
 
-setInterval(() => {
 
-  loadUsers();
-
-  if (selectedUser)
-    loadChat();
-
-}, 3000);
 
 </script>
 
