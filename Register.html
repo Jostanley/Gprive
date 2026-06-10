@@ -122,7 +122,9 @@
 
       const { data, error } = await supabasejs.auth.signUp({
         email,
-        password
+        password,
+        options: {
+    emailRedirectTo: 'https:/iprivae.pages.dev/index.html
       });
 
       if (error) {
