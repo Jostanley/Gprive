@@ -667,6 +667,10 @@ function goToMessage(userId, postId) {
     <a href="profile.html" class = "hover:text-blue font-semibold">Profile</a>
   </div>
 </footer>
-
+<script>
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/sw.js");
+}
+</script>
 </body>
 </html>
