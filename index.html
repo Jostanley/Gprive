@@ -210,24 +210,37 @@ window.addEventListener("focus", async () => {
 // ======================
 
 async function loadPosts() {
-   const res = await fetch(`${API}/feed`, {
-  headers: {
-    Authorization: `Bearer ${token}`
-  }
-});
+       const postsRes = await fetch(`${API}/feed`, {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
 
-if (!res.ok) {
-  throw new Error("Failed to load feed");
-}
+  posts = await postsRes.json();
 
-posts = await res.json();
+  // Show posts immediately
+  render(posts);
 
-  const comments = await (await fetch(`${API}/comments`)).json();
-  const replies = await (await fetch(`${API}/replies`)).json();
-  const postslikes = await (await fetch(`${API}/postsLikes`)).json();
-  const replyLikes = await (await fetch(`${API}/replylikes`)).json();
-  const replyDislikes = await (await fetch(`${API}/replydislikes`)).json();
+  // STEP 2: Load everything else in background
+  const [
+    commentsRes,
+    repliesRes,
+    likesRes,
+    replyLikesRes,
+    replyDislikesRes
+  ] = await Promise.all([
+    fetch(`${API}/comments`),
+    fetch(`${API}/replies`),
+    fetch(`${API}/postsLikes`),
+    fetch(`${API}/replylikes`),
+    fetch(`${API}/replydislikes`)
+  ]);
 
+  const comments = await commentsRes.json();
+  const replies = await repliesRes.json();
+  const postslikes = await likesRes.json();
+  const replyLikes = await replyLikesRes.json();
+  const replyDislikes = await replyDislikesRes.json();
   // 🔥 1. Group comments by post
   const commentMap = {};
   comments.forEach(c => {
@@ -300,98 +313,121 @@ posts = await res.json();
 // ======================
 function render(data) {
   const postsDiv = document.getElementById("posts");
-  postsDiv.innerHTML = "";
+
+  let html = "";
 
   data.forEach(post => {
-    const comments = post.comments || []; 
-    
-       
-            
-            const promoteButton =
-  currentUser === post.user_id
-    ? `
-      <button
-        onclick="promotePost('${post.id}')"
-        class="bg-green-500 text-white  rounded text-sm py-2 px-1">
-        Promote
-      </button>
-    `
-    : "";
-    
-          
 
-    const isVideo = post.file &&
-      (post.file.includes(".mp4") || post.file.includes(".webm"));
+    const comments = post.comments || [];
 
-    postsDiv.innerHTML += `
-      <div class="flex justify-between items-start relative">
+    const promoteButton =
+      currentUser === post.user_id
+        ? `
+          <button
+            onclick="promotePost('${post.id}')"
+            class="bg-green-500 text-white rounded text-sm py-2 px-1">
+            Promote
+          </button>
+        `
+        : "";
 
-  <div>
-    <h1 class="text-blue-600 font-bold">${post.username}</h1>
-    <small>${timeAgo(post.created_at)}</small>
-  </div>
+    const isVideo =
+      post.file &&
+      (post.file.includes(".mp4") ||
+       post.file.includes(".webm"));
 
-  <!-- 3 DOTS -->
-  <button onclick="toggleMenu(this)" class="text-xl px-2">
-    ⋮
-  </button>
+    html += `
+      <div class="bg-white p-3 rounded shadow mb-3">
 
-  <!-- DROPDOWN -->
-  <div class="menu hidden absolute right-0 top-8 bg-white border rounded-lg shadow-md w-32 z-50">
+        <div class="flex justify-between items-start relative">
 
-    <button onclick="toggleBookmark('${post.id}')" class="w-full text-left px-4 py-2 hover:bg-gray-100">
-      ⭐ Bookmark
-    </button>
+          <div>
+            <h1 class="text-blue-600 font-bold">${post.username}</h1>
+            <small>${timeAgo(post.created_at)}</small>
+          </div>
 
-    <button onclick="reportPost('${post.id}')" class="w-full text-left px-4 py-2 hover:bg-gray-100 text-red-500">
-      🚩 Report
-    </button>
+          <button onclick="toggleMenu(this)" class="text-xl px-2">
+            ⋮
+          </button>
 
-  </div>
+          <div class="menu hidden absolute right-0 top-8 bg-white border rounded-lg shadow-md w-32 z-50">
+            <button onclick="toggleBookmark('${post.id}')" class="w-full text-left px-4 py-2 hover:bg-gray-100">
+              ⭐ Bookmark
+            </button>
 
-</div>
+            <button onclick="reportPost('${post.id}')" class="w-full text-left px-4 py-2 hover:bg-gray-100 text-red-500">
+              🚩 Report
+            </button>
+          </div>
+
+        </div>
+
         <h2 class="font-semibold">${post.title}</h2>
 
         <p>
-          ${expandedPosts[post.id]
-            ? post.content
-            : post.content.slice(0, 100) + "..."}
+          ${
+            expandedPosts[post.id]
+              ? post.content
+              : post.content.slice(0, 100) + "..."
+          }
         </p>
 
-        <button onclick="togglePost('${post.id}')" class="text-blue-500 text-sm">
-          ${expandedPosts[post.id] ? "View less" : "View more"}
+        <button onclick="togglePost('${post.id}')"
+          class="text-blue-500 text-sm">
+          ${
+            expandedPosts[post.id]
+              ? "View less"
+              : "View more"
+          }
         </button>
 
-        ${post.file ? (
-          isVideo
-            ? `<video src="${post.file}" controls class="w-full mt-2 rounded"></video>`
-            : `<img src="${post.file}" class="w-full mt-2 rounded"/>`
-        ) : ""}
+        ${
+          post.file
+            ? isVideo
+              ? `<video src="${post.file}" controls class="w-full mt-2 rounded"></video>`
+              : `<img src="${post.file}" class="w-full mt-2 rounded"/>`
+            : ""
+        }
 
-        <!-- ACTIONS -->
         <div class="flex gap-3 mt-2">
-            
-    
-          <button onclick="upvote('${post.id}')" class = "flex-1">
-             ${post.likes || 0}  <i class="fa-regular fa-heart"></i> 
+
+          <button onclick="upvote('${post.id}')"
+            class="flex-1">
+            ${post.likes || 0}
+            <i class="fa-regular fa-heart"></i>
           </button>
- <button onclick="goToMessage('${post.user_id}')" class = "flex-1">message</button>
-          <button onclick="toggleComments('${post.id}')" class = "flex-1">
-            ${comments.length} <i class="fa-regular fa-comment"></i> </button>
+
+          <button onclick="goToMessage('${post.user_id}')"
+            class="flex-1">
+            message
+          </button>
+
+          <button onclick="toggleComments('${post.id}')"
+            class="flex-1">
+            ${comments.length}
+            <i class="fa-regular fa-comment"></i>
+          </button>
+
           ${promoteButton}
 
         </div>
 
-        <!-- COMMENT BOX -->
-        <div class="mt-2 flex gap-2 ">
-          <input id="comment-${post.id}" class="border p-1 w-full" placeholder="Comment..." />
-          <button onclick="addComment('${post.id}')" class="bg-blue-500 text-white px-2">
+        <div class="mt-2 flex gap-2">
+          <input
+            id="comment-${post.id}"
+            class="border p-1 w-full"
+            placeholder="Comment..."
+          />
+
+          <button
+            onclick="addComment('${post.id}')"
+            class="bg-blue-500 text-white px-2">
             Send
           </button>
         </div>
 
-        <!-- COMMENTS -->
-        <div id="comments-${post.id}" class="hidden mt-3 space-y-2">
+        <div id="comments-${post.id}"
+          class="hidden mt-3 space-y-2">
 
           ${comments.map(c => `
             <div class="bg-gray-100 p-2 rounded">
@@ -399,20 +435,39 @@ function render(data) {
               <p>${c.text}</p>
 
               <div class="flex gap-3 text-sm">
-                <button onclick="likeComment('${c.id}')">${c.liked || 0} Likes</button>
-                <button onclick="dislikeComment('${c.id}')">DisLikes ${c.disliked || 0}</button>
-                <button onclick="toggleReply('${c.id}')">Reply</button>
-              </div>
+                <button onclick="likeComment('${c.id}')">
+                  ${c.liked || 0} Likes
+                </button>
 
-              <div id="reply-${c.id}" class="hidden gap-2 mt-2">
-                <input id="replyInput-${c.id}" class="border p-1 w-full"/>
-                <button onclick="sendReply('${c.id}')" class="bg-green-500 text-white px-2">
-                  Send
+                <button onclick="dislikeComment('${c.id}')">
+                  ${c.disliked || 0} Dislikes
+                </button>
+
+                <button onclick="toggleReply('${c.id}')">
+                  Reply
                 </button>
               </div>
 
+              <div id="reply-${c.id}"
+                class="hidden gap-2 mt-2">
+
+                <input
+                  id="replyInput-${c.id}"
+                  class="border p-1 w-full"
+                />
+
+                <button
+                  onclick="sendReply('${c.id}')"
+                  class="bg-green-500 text-white px-2">
+                  Send
+                </button>
+
+              </div>
+
               ${(c.replies || []).map(r => `
-                <p class="ml-4 text-sm">↳ ${r.text}</p>
+                <p class="ml-4 text-sm">
+                  ↳ ${r.text}
+                </p>
               `).join("")}
 
             </div>
@@ -423,7 +478,11 @@ function render(data) {
       </div>
     `;
   });
+
+  postsDiv.innerHTML = html;
 }
+  
+          
 
 // ======================
 // ACTIONS
